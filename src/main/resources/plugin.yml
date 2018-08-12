@@ -1,0 +1,8 @@
+name: Chairs
+main: com.chromaclypse.chairs.Chairs
+version: ${project.version}
+description: Sit your ass down
+author: ezeiger92
+api-version: 1.13
+commands: {}
+permissions: {}
