@@ -2,7 +2,7 @@
 	<modelVersion>4.0.0</modelVersion>
 	<groupId>com.chromaclypse.chairs</groupId>
 	<artifactId>Chairs</artifactId>
-	<version>0.5.0-SNAPSHOT</version>
+	<version>0.5.1</version>
 	<build>
 		<resources>
 			<resource>
@@ -34,7 +34,19 @@
 		<dependency>
 			<groupId>org.spigotmc</groupId>
 			<artifactId>spigot-api</artifactId>
-			<version>1.13-R0.1-SNAPSHOT</version>
+			<version>1.13.1-R0.1-SNAPSHOT</version>
+			<scope>provided</scope>
+		</dependency>
+		<dependency>
+			<groupId>org.spigotmc</groupId>
+			<artifactId>spigot-api</artifactId>
+			<version>1.13.1-R0.1-SNAPSHOT</version>
+			<scope>provided</scope>
+		</dependency>
+		<dependency>
+			<groupId>com.chromaclypse.api</groupId>
+			<artifactId>ChromaclypseApi</artifactId>
+			<version>1.1.0</version>
 			<scope>provided</scope>
 		</dependency>
 	</dependencies>

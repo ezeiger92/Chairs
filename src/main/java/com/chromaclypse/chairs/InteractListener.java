@@ -23,6 +23,7 @@ import org.bukkit.event.block.BlockPistonRetractEvent;
 import org.bukkit.event.player.PlayerInteractEvent;
 import org.bukkit.event.player.PlayerKickEvent;
 import org.bukkit.event.player.PlayerQuitEvent;
+import org.bukkit.inventory.ItemStack;
 import org.bukkit.metadata.FixedMetadataValue;
 import org.bukkit.plugin.Plugin;
 import org.spigotmc.event.entity.EntityDismountEvent;
@@ -32,21 +33,61 @@ public class InteractListener implements Listener {
 	private static final String MD_KEY = "sitting:chair";
 	private FixedMetadataValue chairMeta;
 	
+	public SeatConfig config = new SeatConfig();
+	
 	public InteractListener(Plugin handle) {
 		this.handle = handle;
 		chairMeta = new FixedMetadataValue(handle, true);
+		config.init(handle);
+	}
+	
+	private static EnumSet<Material> blacklist = EnumSet.of(
+			Material.BOW, Material.TRIDENT, Material.FLINT_AND_STEEL, Material.FLINT,
+			Material.FIRE_CHARGE, Material.BUCKET, Material.COD_BUCKET, Material.LAVA_BUCKET,
+			Material.PUFFERFISH_BUCKET, Material.SALMON_BUCKET, Material.TROPICAL_FISH_BUCKET,
+			Material.WATER_BUCKET, Material.FISHING_ROD, Material.STRING, Material.GLASS_BOTTLE,
+			Material.ACACIA_BOAT, Material.BIRCH_BOAT, Material.DARK_OAK_BOAT,
+			Material.JUNGLE_BOAT, Material.OAK_BOAT, Material.SPRUCE_BOAT, Material.MINECART,
+			Material.CHEST_MINECART, Material.COMMAND_BLOCK_MINECART, Material.FURNACE_MINECART,
+			Material.HOPPER_MINECART, Material.TNT_MINECART, Material.ARMOR_STAND,
+			Material.ITEM_FRAME, Material.PAINTING);
+	
+	private boolean allowInteractSeat(ItemStack hand) {
+		Material material = hand.getType();
+		
+		if(material == Material.AIR) {
+			return true;
+		}
+		
+		if(material.isEdible() || material.isBlock()) {
+			return false;
+		}
+		
+		return !config.strictInteract || !blacklist.contains(material);
 	}
 
 	@EventHandler(priority=EventPriority.HIGHEST, ignoreCancelled = true)
 	public void onClick(PlayerInteractEvent event) {
+		Block block = event.getClickedBlock();
+		
 		if(event.getAction() == Action.RIGHT_CLICK_BLOCK &&
-				!event.isBlockInHand() && !event.getPlayer().isSneaking()) {
+				allowInteractSeat(event.getPlayer().getInventory().getItemInMainHand()) &&
+				!event.getPlayer().isSneaking() &&
+				block.getRelative(BlockFace.DOWN).getType().isSolid()) {
 			
-			Stairs s = asChair(event.getClickedBlock());
+			Stairs s = asChair(block);
 			
-			if(s != null && !isChairInUse(event.getClickedBlock())) {
+			if(s != null && !isChairInUse(block)) {
+				
+				// Direction faced as a chair (descending stair)
 				BlockFace facing = s.getFacing().getOppositeFace();
-				Location location = event.getClickedBlock().getLocation();
+				Location location = block.getLocation();
+				
+				// Abort if part of a staircase
+				if(block.getRelative(facing).getRelative(BlockFace.DOWN).getBlockData() instanceof Stairs ||
+						block.getRelative(facing.getOppositeFace()).getRelative(BlockFace.UP).getBlockData() instanceof Stairs) {
+					return;
+				}
 				
 				location.add(0.5, 0.3, 0.5);
 				
@@ -141,7 +182,7 @@ public class InteractListener implements Listener {
 	
 	@EventHandler(priority=EventPriority.MONITOR, ignoreCancelled = true)
 	public void onBlockBreak(BlockBreakEvent event) {
-		Stairs chair = asChair(event.getBlock());
+		Stairs chair = asChair(event.getBlock(), false);
 		
 		if(chair != null) {
 			ArmorStand mount = getChairMount(event.getBlock());

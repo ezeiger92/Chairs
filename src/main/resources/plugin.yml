@@ -4,5 +4,13 @@ version: ${project.version}
 description: Sit your ass down
 author: ezeiger92
 api-version: 1.13
-commands: {}
-permissions: {}
+depend: [ChromaLib]
+commands:
+  chairs:
+    description: Root Chairs command
+    usage: /<command> reload
+    permission: chairs.reload
+permissions:
+  chairs.reload:
+    description: Reload perm
+    default: op
