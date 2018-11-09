@@ -14,6 +14,7 @@ public class Chairs extends JavaPlugin {
 		inter = new InteractListener(this);
 		getCommand("chairs").setExecutor(this);
 		this.getServer().getPluginManager().registerEvents(inter, this);
+		this.getServer().getPluginManager().registerEvents(new DoubleDoor(), this);
 	}
 	
 	@Override
