@@ -1,16 +1,18 @@
 package com.chromaclypse.chairs;
 
+import java.util.ArrayList;
 import java.util.EnumSet;
 import java.util.List;
 
-import org.bukkit.Bukkit;
 import org.bukkit.Location;
 import org.bukkit.Material;
+import org.bukkit.attribute.Attribute;
 import org.bukkit.block.Block;
 import org.bukkit.block.BlockFace;
 import org.bukkit.block.data.Bisected.Half;
 import org.bukkit.block.data.BlockData;
 import org.bukkit.block.data.type.Stairs;
+import org.bukkit.block.data.type.Stairs.Shape;
 import org.bukkit.entity.ArmorStand;
 import org.bukkit.entity.Entity;
 import org.bukkit.event.EventHandler;
@@ -29,14 +31,12 @@ import org.bukkit.plugin.Plugin;
 import org.spigotmc.event.entity.EntityDismountEvent;
 
 public class InteractListener implements Listener {
-	private Plugin handle;
 	private static final String MD_KEY = "sitting:chair";
 	private FixedMetadataValue chairMeta;
 	
 	public SeatConfig config = new SeatConfig();
 	
 	public InteractListener(Plugin handle) {
-		this.handle = handle;
 		chairMeta = new FixedMetadataValue(handle, true);
 		config.init(handle);
 	}
@@ -91,36 +91,21 @@ public class InteractListener implements Listener {
 				
 				location.add(0.5, 0.3, 0.5);
 				
-				switch(facing) {
-					case NORTH:
-						location.setYaw(180.f);
-						break;
-					case EAST:
-						location.setYaw(270.f);
-						break;
-					case SOUTH:
-						location.setYaw(0.f);
-						break;
-					case WEST:
-						location.setYaw(90.f);
-						break;
-					default:
+				location.setYaw(getYawFromStair(s));
+
+				if(s.getShape() == Shape.INNER_RIGHT || s.getShape() == Shape.INNER_LEFT) {
+					location.add(location.getDirection().multiply(0.2));
 				}
 
 				ArmorStand mount = asChairMount(event.getPlayer().getVehicle());
 				
 				if(mount != null) {
+					//return;
 					moveMount(mount, location);
 					event.setCancelled(true);
 				}
 				else {
-					mount = event.getClickedBlock().getWorld().spawn(location, ArmorStand.class, as -> {
-						as.setMarker(true);
-						as.setVisible(false);
-						as.setInvulnerable(true);
-						as.setGravity(false);
-						as.setMetadata(MD_KEY, chairMeta);
-					});
+					mount = makeMount(location);
 					
 					if(mount != null) {
 						event.setCancelled(true);
@@ -129,6 +114,65 @@ public class InteractListener implements Listener {
 				}
 			}
 		}
+	}
+	
+	private ArmorStand makeMount(Location location) {
+		return location.getWorld().spawn(location, ArmorStand.class, as -> {
+			as.setMarker(true);
+			as.setVisible(false);
+			as.setInvulnerable(true);
+			as.setGravity(false);
+			as.setMetadata(MD_KEY, chairMeta);
+			as.getAttribute(Attribute.GENERIC_MAX_HEALTH).setBaseValue(0);
+		});
+	}
+	
+	private float getYawFromStair(Stairs stair) {
+		BlockFace facing = stair.getFacing().getOppositeFace();
+		float yaw;
+		
+		//Handle base direction
+		switch(facing) {
+			case NORTH:
+				yaw = 180.f;
+				break;
+			case EAST:
+				yaw = 270.f;
+				break;
+			case SOUTH:
+				yaw = 0.f;
+				break;
+			case WEST:
+				yaw = 90.f;
+				break;
+			default:
+				yaw = 66.7f;
+				break;
+		}
+		
+		//Modify yaw based on shape
+		switch(stair.getShape()) {
+			case INNER_LEFT:
+			case OUTER_LEFT:
+				yaw -= 45;
+				
+				if(yaw < 0) {
+					yaw += 360;
+				}
+				break;
+			case INNER_RIGHT:
+			case OUTER_RIGHT:
+				yaw += 45;
+				
+				if(yaw >= 360) {
+					yaw -= 360;
+				}
+				break;
+			case STRAIGHT:
+				break;
+		}
+		
+		return yaw;
 	}
 	
 	@EventHandler(priority=EventPriority.MONITOR, ignoreCancelled = true)
@@ -167,10 +211,7 @@ public class InteractListener implements Listener {
 				for(BlockFace face : faces) {
 					Block nearby = chairBlock.getRelative(face);
 					if(canDismountAt(nearby)) {
-						Bukkit.getScheduler().runTask(handle, () -> {
-							rider.teleport(nearby.getLocation().add(0.5, 0.0, 0.5).setDirection(rider.getLocation().getDirection()));
-						});
-						
+						rider.teleport(nearby.getLocation().add(0.5, 0.0, 0.5).setDirection(rider.getLocation().getDirection()));
 						break;
 					}
 				}
@@ -188,11 +229,13 @@ public class InteractListener implements Listener {
 			ArmorStand mount = getChairMount(event.getBlock());
 			
 			if(mount != null) {
-				Bukkit.getScheduler().runTask(handle, () -> {
-					// We only put 1 rider on a seat
-					Entity rider = mount.getPassengers().get(0);
-					rider.teleport(event.getBlock().getLocation().add(0.5, 0.0, 0.5).setDirection(rider.getLocation().getDirection()));
-				});
+				Location target = event.getBlock().getLocation().add(0.5, 0.0, 0.5);
+				
+				for(Entity rider : mount.getPassengers()) {
+					rider.teleport(target.setDirection(rider.getLocation().getDirection()));
+				}
+				
+				mount.remove();
 			}
 		}
 	}
@@ -306,13 +349,13 @@ public class InteractListener implements Listener {
 	}
 	
 	void moveMount(ArmorStand mount, Location location) {
-		Entity rider = mount.getPassengers().get(0);
+		ArmorStand newMount = makeMount(location);
+		List<Entity> oldPassengers = new ArrayList<>(mount.getPassengers());
 		
-		mount.removeMetadata(MD_KEY, handle);
-		mount.eject();
-		mount.teleport(location);
-
-		mount.addPassenger(rider);
-		mount.setMetadata(MD_KEY, chairMeta);
+		mount.remove();
+		
+		for(Entity rider : oldPassengers) {
+			newMount.addPassenger(rider);
+		}
 	}
 }
