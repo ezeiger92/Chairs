@@ -2,7 +2,7 @@
 	<modelVersion>4.0.0</modelVersion>
 	<groupId>com.chromaclypse.chairs</groupId>
 	<artifactId>Chairs</artifactId>
-	<version>0.7.0</version>
+	<version>0.7.1</version>
 	<build>
 		<resources>
 			<resource>
@@ -40,7 +40,7 @@
 		<dependency>
 			<groupId>com.chromaclypse.api</groupId>
 			<artifactId>ChromaclypseApi</artifactId>
-			<version>1.1.0</version>
+			<version>1.4.2</version>
 			<scope>provided</scope>
 		</dependency>
 	</dependencies>
